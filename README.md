@@ -76,10 +76,10 @@ docker-compose up --build
 └──────────────────────────┬─────────────────────────────────────────┘
                            │
 ┌──────────────────────────▼─────────────────────────────────────────┐
-│                        Service Layer (7)                           │
+│                        Service Layer (8)                           │
 │  DeviceService · AppVersionService · VersionCompatibilityService   │
 │  UpdateScheduleService · DeviceUpdateService · DashboardService    │
-│              AuditService · HeartbeatBufferService                  │
+│          AuditService · AdminService · HeartbeatBufferService       │
 │                                                                    │
 │  Key algorithms:                                                   │
 │  • BFS shortest upgrade path through version compatibility graph   │
@@ -118,7 +118,7 @@ src/main/java/com/moveinsync/mdm/
 ├── kafka/           # ScheduleApprovalConsumer (async event processing)
 ├── repository/      # 7 JPA repositories with custom JPQL
 ├── security/        # JWT service, filter, UserDetailsService, SecurityConfig
-└── service/         # 7 service classes + HeartbeatBufferService
+└── service/         # 8 service classes + HeartbeatBufferService
 ```
 
 ---
@@ -129,6 +129,7 @@ src/main/java/com/moveinsync/mdm/
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
 | POST | `/api/v1/auth/login` | Public | Login, returns JWT |
+| POST | `/api/v1/auth/register` | SUPER_ADMIN | Create new admin |
 
 ### Devices
 | Method | Endpoint | Access | Description |
