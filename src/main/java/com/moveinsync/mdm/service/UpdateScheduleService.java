@@ -1,10 +1,12 @@
 package com.moveinsync.mdm.service;
 
+import com.moveinsync.mdm.config.KafkaConfig;
 import com.moveinsync.mdm.dto.request.ScheduleUpdateRequest;
 import com.moveinsync.mdm.dto.response.CompatibilityCheckResponse;
 import com.moveinsync.mdm.dto.response.ScheduleResponse;
 import com.moveinsync.mdm.entity.*;
 import com.moveinsync.mdm.enums.*;
+import com.moveinsync.mdm.event.ScheduleApprovedEvent;
 import com.moveinsync.mdm.exception.DowngradeNotAllowedException;
 import com.moveinsync.mdm.exception.NoUpgradePathException;
 import com.moveinsync.mdm.exception.ScheduleNotFoundException;
@@ -12,6 +14,7 @@ import com.moveinsync.mdm.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +34,7 @@ public class UpdateScheduleService {
         private final AdminRepository adminRepository;
         private final VersionCompatibilityService compatibilityService;
         private final AuditService auditService;
+        private final KafkaTemplate<String, ScheduleApprovedEvent> kafkaTemplate;
 
         @Transactional
         public ScheduleResponse scheduleUpdate(ScheduleUpdateRequest request, UUID adminId) {
@@ -189,16 +193,29 @@ public class UpdateScheduleService {
                 schedule.setApprovedAt(LocalDateTime.now());
                 scheduleRepository.save(schedule);
 
-                // Gap #14 FIX: Batch update instead of N+1 individual saves
-                List<DeviceUpdate> deviceUpdates = deviceUpdateRepository.findByScheduleId(scheduleId);
-                deviceUpdates.forEach(du -> du.setCurrentState(UpdateState.NOTIFIED));
-                deviceUpdateRepository.saveAll(deviceUpdates);
+                // ═══════════════════════════════════════════════════════════════
+                // KAFKA: Publish approval event for async device notification.
+                // The consumer (ScheduleApprovalConsumer) will transition devices
+                // from SCHEDULED → NOTIFIED in batches. The HTTP response returns
+                // immediately — no blocking on 10K+ device updates.
+                //
+                // Why Kafka (not Spring Events):
+                // • Survives JVM crash — messages are persistent
+                // • Scales across instances — consumer groups distribute load
+                // • At-least-once delivery guarantee
+                // ═══════════════════════════════════════════════════════════════
+                ScheduleApprovedEvent event = new ScheduleApprovedEvent(
+                                scheduleId, adminId, LocalDateTime.now());
+                kafkaTemplate.send(KafkaConfig.SCHEDULE_APPROVED_TOPIC, scheduleId.toString(), event);
+
+                log.info("Schedule {} approved by admin {}. Kafka event published for async device notification.",
+                                scheduleId, adminId);
 
                 auditService.logEvent(AuditEntityType.SCHEDULE, schedule.getId(),
                                 "SCHEDULE_APPROVED", "PENDING_APPROVAL", "APPROVED",
                                 adminId, ActorType.ADMIN, Map.of("approvedBy", approver.getUsername()));
 
-                log.info("Schedule {} approved by admin {}", scheduleId, adminId);
+                long deviceCount = deviceUpdateRepository.countByScheduleId(scheduleId);
 
                 return ScheduleResponse.builder()
                                 .scheduleId(schedule.getId())
@@ -207,9 +224,9 @@ public class UpdateScheduleService {
                                 .toVersionCode(schedule.getToVersionCode())
                                 .approvedBy(approver.getUsername())
                                 .approvedAt(schedule.getApprovedAt())
-                                .deviceUpdateIds(deviceUpdates.stream()
-                                                .map(DeviceUpdate::getId).collect(Collectors.toList()))
-                                .message("Schedule approved. Devices have been notified.")
+                                .targetDeviceCount(deviceCount)
+                                .message("Schedule approved. " + deviceCount
+                                                + " devices will be notified asynchronously via Kafka.")
                                 .build();
         }
 

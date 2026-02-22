@@ -36,6 +36,7 @@ public class DeviceService {
         private final DeviceUpdateRepository deviceUpdateRepository;
         private final AppVersionRepository appVersionRepository;
         private final AuditService auditService;
+        private final HeartbeatBufferService heartbeatBufferService;
         private final MeterRegistry meterRegistry;
 
         @Transactional
@@ -83,33 +84,43 @@ public class DeviceService {
                                 .build();
         }
 
-        @Transactional
+        @Transactional(readOnly = true)
         public HeartbeatResponse processHeartbeat(HeartbeatRequest request) {
                 Device device = deviceRepository.findByImei(request.getImei())
                                 .orElseThrow(() -> new DeviceNotFoundException(
                                                 "No device found with IMEI " + request.getImei()
                                                                 + ". Please register first."));
 
-                // Update device metadata
-                device.setLastHeartbeat(LocalDateTime.now());
-                if (request.getRegion() != null) {
-                        device.setRegion(request.getRegion());
-                }
-                device.setStatus(DeviceStatus.ACTIVE);
+                // ═══════════════════════════════════════════════════════════════
+                // REDIS HEARTBEAT BUFFER: Instead of writing directly to PostgreSQL
+                // (which costs a DB connection per heartbeat), we buffer in Redis
+                // (sub-millisecond, no connection pool contention).
+                //
+                // HeartbeatFlushJob flushes Redis → PostgreSQL every 30 seconds.
+                //
+                // Why Redis (not Kafka) for heartbeats:
+                // • Heartbeats are idempotent — losing a few is harmless
+                // • Redis write is O(1), sub-millisecond
+                // • At 1M devices: 3,333 writes/sec → Redis handles easily,
+                // PostgreSQL connection pool (20) would be overwhelmed
+                // ═══════════════════════════════════════════════════════════════
+                LocalDateTime now = LocalDateTime.now();
+                heartbeatBufferService.bufferHeartbeat(
+                                request.getImei(), now,
+                                request.getRegion(), request.getAppVersion());
+
+                // Prometheus: track heartbeats by region
+                meterRegistry.counter("mdm.heartbeat.total",
+                                "region", device.getRegion() != null ? device.getRegion() : "unknown").increment();
 
                 // VERSION COMPLIANCE VALIDATION (Gap #5/#19)
-                // Validate that the reported version actually exists in the app_versions table.
-                // Prevents devices from reporting arbitrary/spoofed version strings.
+                // These are READ queries — cheap on PostgreSQL, no need to buffer.
                 boolean versionCompliant = true;
                 String complianceMessage = null;
                 AppVersion reportedVersion = appVersionRepository.findByVersionName(request.getAppVersion())
                                 .orElse(null);
 
                 if (reportedVersion != null) {
-                        // Valid version — update device record
-                        device.setAppVersion(request.getAppVersion());
-
-                        // Check if the device is on the latest available version
                         AppVersion latestVersion = appVersionRepository.findTopByIsActiveTrueOrderByVersionCodeDesc()
                                         .orElse(null);
                         if (latestVersion != null
@@ -123,20 +134,14 @@ public class DeviceService {
                                                 complianceMessage);
                         }
                 } else {
-                        // Unknown version — log warning but still accept heartbeat
                         log.warn("Heartbeat from IMEI={} reports unknown version '{}'. Not updating device version.",
                                         request.getImei(), request.getAppVersion());
                         versionCompliant = false;
                         complianceMessage = "Reported version '" + request.getAppVersion()
                                         + "' is not recognized. Device version not updated.";
                 }
-                deviceRepository.save(device);
 
-                // Prometheus: track heartbeats by region
-                meterRegistry.counter("mdm.heartbeat.total",
-                                "region", device.getRegion() != null ? device.getRegion() : "unknown").increment();
-
-                // Check for pending updates
+                // Check for pending updates (READ query — cheap)
                 HeartbeatResponse.PendingUpdateInfo pendingUpdate = null;
                 List<DeviceUpdate> scheduledUpdates = deviceUpdateRepository.findScheduledByDeviceId(device.getId());
 
@@ -157,7 +162,7 @@ public class DeviceService {
 
                 return HeartbeatResponse.builder()
                                 .acknowledged(true)
-                                .lastHeartbeat(device.getLastHeartbeat())
+                                .lastHeartbeat(now)
                                 .pendingUpdate(pendingUpdate)
                                 .versionCompliant(versionCompliant)
                                 .complianceMessage(complianceMessage)
