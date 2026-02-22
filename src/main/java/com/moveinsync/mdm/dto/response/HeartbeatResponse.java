@@ -13,6 +13,8 @@ public class HeartbeatResponse {
     private boolean acknowledged;
     private LocalDateTime lastHeartbeat;
     private PendingUpdateInfo pendingUpdate;
+    private boolean versionCompliant;
+    private String complianceMessage;
 
     @Data
     @Builder

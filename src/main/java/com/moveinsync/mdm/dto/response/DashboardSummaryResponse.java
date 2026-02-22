@@ -17,6 +17,7 @@ public class DashboardSummaryResponse {
     private List<VersionDistribution> versionDistribution;
     private List<RegionBreakdown> regionBreakdown;
     private List<ActiveRollout> activeRollouts;
+    private List<VersionHeatmap> versionHeatmap;
 
     @Data
     @Builder
@@ -33,6 +34,15 @@ public class DashboardSummaryResponse {
     public static class RegionBreakdown {
         private String region;
         private long totalDevices;
+        private List<VersionCount> versionAdoption; // Gap #9: version adoption per region
+    }
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    public static class VersionCount {
+        private String version;
+        private long count;
     }
 
     @Data
@@ -43,5 +53,19 @@ public class DashboardSummaryResponse {
         private String targetVersion;
         private double progress;
         private String status;
+        private long successCount; // Gap #7: success count
+        private long failureCount; // Gap #7: failure count
+        private double successRate; // Gap #7: success rate percentage
+        private double failureRate; // Gap #7: failure rate percentage
+    }
+
+    // Gap #8: Version heatmap — cross-region/version device counts
+    @Data
+    @Builder
+    @AllArgsConstructor
+    public static class VersionHeatmap {
+        private String region;
+        private String version;
+        private long deviceCount;
     }
 }

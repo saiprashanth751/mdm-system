@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -26,4 +27,5 @@ public class ScheduleResponse {
     private LocalDateTime approvedAt;
     private LocalDateTime createdAt;
     private String message;
+    private List<UUID> deviceUpdateIds; // Gap #18: expose for Postman/clients
 }
