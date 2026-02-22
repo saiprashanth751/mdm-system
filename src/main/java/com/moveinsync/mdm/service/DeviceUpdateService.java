@@ -15,6 +15,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,7 +35,12 @@ public class DeviceUpdateService {
         private final AuditService auditService;
         private final MeterRegistry meterRegistry;
 
+        /**
+         * Evicts dashboard cache on every state transition so the dashboard
+         * reflects real-time update progress instead of stale cached data.
+         */
         @Transactional
+        @CacheEvict(value = "dashboard", allEntries = true)
         public DeviceUpdateResponse updateStatus(UUID deviceUpdateId, UpdateStatusRequest request) {
                 DeviceUpdate deviceUpdate = deviceUpdateRepository.findById(deviceUpdateId)
                                 .orElseThrow(() -> new IllegalArgumentException(
