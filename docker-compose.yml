@@ -74,6 +74,31 @@ services:
       kafka:
         condition: service_healthy
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: mdm-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - app
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: mdm-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana-dashboard.json:/var/lib/grafana/dashboards/grafana-dashboard.json
+    depends_on:
+      - prometheus
+
 volumes:
   postgres_data:
   redis_data:
