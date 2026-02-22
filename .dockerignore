@@ -1,0 +1,13 @@
+target/
+.mvn/
+!.mvn/wrapper/maven-wrapper.jar
+*.md
+*.txt
+*.log
+.git/
+.gitignore
+.idea/
+*.iml
+docker-compose.yml
+Dockerfile
+MDM-System.postman_collection.json

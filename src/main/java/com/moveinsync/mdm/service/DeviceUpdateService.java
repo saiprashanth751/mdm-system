@@ -58,32 +58,26 @@ public class DeviceUpdateService {
         UpdateState previousState = deviceUpdate.getCurrentState();
 
         // DEVICE-LEVEL DOWNGRADE PREVENTION
-        // Check if the target version of this update is lower than current device
-        // version
+        // Before installation begins, verify the target version is not lower than the
+        // device's current version.
+        // Uses two indexed queries: one by version name (device's current), one by
+        // version code (target).
         if (newState == UpdateState.INSTALLATION_STARTED || newState == UpdateState.INSTALLATION_COMPLETED) {
             Integer targetVersionCode = deviceUpdate.getSchedule().getToVersionCode();
-            appVersionRepository.findByVersionCode(targetVersionCode).ifPresent(targetVersion -> {
-                // Compare version names to detect downgrade
-                try {
-                    // Simple version comparison by version code
-                    appVersionRepository.findByVersionCode(targetVersionCode).ifPresent(tv -> {
-                        // If device's current version code is higher, block
-                        appVersionRepository.findAll().stream()
-                                .filter(v -> v.getVersionName().equals(device.getAppVersion()))
-                                .findFirst()
-                                .ifPresent(currentVersion -> {
-                                    if (currentVersion.getVersionCode() > targetVersionCode) {
-                                        throw new DowngradeNotAllowedException(
-                                                "Device is currently on version " + device.getAppVersion() +
-                                                        ". Installing version " + tv.getVersionName()
-                                                        + " is not permitted.");
-                                    }
-                                });
+
+            appVersionRepository.findByVersionName(device.getAppVersion())
+                    .ifPresent(currentVersion -> {
+                        if (currentVersion.getVersionCode() > targetVersionCode) {
+                            String targetName = appVersionRepository.findByVersionCode(targetVersionCode)
+                                    .map(tv -> tv.getVersionName())
+                                    .orElse(String.valueOf(targetVersionCode));
+                            throw new DowngradeNotAllowedException(
+                                    "Device is currently on version " + device.getAppVersion() +
+                                            " (code " + currentVersion.getVersionCode() +
+                                            "). Installing version " + targetName +
+                                            " (code " + targetVersionCode + ") is not permitted.");
+                        }
                     });
-                } catch (DowngradeNotAllowedException e) {
-                    throw e;
-                }
-            });
         }
 
         // STATE MACHINE VALIDATION

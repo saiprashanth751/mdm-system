@@ -18,4 +18,6 @@ public interface AppVersionRepository extends JpaRepository<AppVersion, UUID> {
     List<AppVersion> findAllByOrderByVersionCodeDesc();
 
     List<AppVersion> findByCustomizationTag(String customizationTag);
+
+    Optional<AppVersion> findByVersionName(String versionName);
 }
