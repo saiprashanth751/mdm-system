@@ -5,8 +5,7 @@ import com.moveinsync.mdm.dto.request.ScheduleUpdateRequest;
 import com.moveinsync.mdm.dto.request.UpdateStatusRequest;
 import com.moveinsync.mdm.dto.response.DeviceUpdateResponse;
 import com.moveinsync.mdm.dto.response.ScheduleResponse;
-import com.moveinsync.mdm.entity.Admin;
-import com.moveinsync.mdm.repository.AdminRepository;
+import com.moveinsync.mdm.security.AdminIdResolver;
 import com.moveinsync.mdm.service.DeviceUpdateService;
 import com.moveinsync.mdm.service.UpdateScheduleService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,7 +28,7 @@ public class UpdateController {
 
     private final UpdateScheduleService updateScheduleService;
     private final DeviceUpdateService deviceUpdateService;
-    private final AdminRepository adminRepository;
+    private final AdminIdResolver adminIdResolver; // Gap #21: shared utility
 
     // ==================== SCHEDULE MANAGEMENT ====================
 
@@ -38,7 +37,7 @@ public class UpdateController {
     public ResponseEntity<ScheduleResponse> scheduleUpdate(
             @Valid @RequestBody ScheduleUpdateRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
-        UUID adminId = getAdminId(userDetails);
+        UUID adminId = adminIdResolver.resolve(userDetails);
         return ResponseEntity.status(HttpStatus.CREATED).body(updateScheduleService.scheduleUpdate(request, adminId));
     }
 
@@ -47,7 +46,7 @@ public class UpdateController {
     public ResponseEntity<ScheduleResponse> approveSchedule(
             @PathVariable UUID scheduleId,
             @AuthenticationPrincipal UserDetails userDetails) {
-        UUID adminId = getAdminId(userDetails);
+        UUID adminId = adminIdResolver.resolve(userDetails);
         return ResponseEntity.ok(updateScheduleService.approveSchedule(scheduleId, adminId));
     }
 
@@ -57,7 +56,7 @@ public class UpdateController {
             @PathVariable UUID scheduleId,
             @RequestBody(required = false) RejectScheduleRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
-        UUID adminId = getAdminId(userDetails);
+        UUID adminId = adminIdResolver.resolve(userDetails);
         String reason = request != null ? request.getReason() : null;
         return ResponseEntity.ok(updateScheduleService.rejectSchedule(scheduleId, adminId, reason));
     }
@@ -76,11 +75,5 @@ public class UpdateController {
             @PathVariable UUID deviceUpdateId,
             @Valid @RequestBody UpdateStatusRequest request) {
         return ResponseEntity.ok(deviceUpdateService.updateStatus(deviceUpdateId, request));
-    }
-
-    private UUID getAdminId(UserDetails userDetails) {
-        Admin admin = adminRepository.findByUsername(userDetails.getUsername())
-                .orElseThrow(() -> new IllegalArgumentException("Admin not found"));
-        return admin.getId();
     }
 }

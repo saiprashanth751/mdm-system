@@ -4,8 +4,7 @@ import com.moveinsync.mdm.dto.request.CompatibilityRuleRequest;
 import com.moveinsync.mdm.dto.request.CreateVersionRequest;
 import com.moveinsync.mdm.dto.response.CompatibilityCheckResponse;
 import com.moveinsync.mdm.dto.response.VersionResponse;
-import com.moveinsync.mdm.entity.Admin;
-import com.moveinsync.mdm.repository.AdminRepository;
+import com.moveinsync.mdm.security.AdminIdResolver;
 import com.moveinsync.mdm.service.AppVersionService;
 import com.moveinsync.mdm.service.VersionCompatibilityService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,14 +29,14 @@ public class AppVersionController {
 
     private final AppVersionService appVersionService;
     private final VersionCompatibilityService compatibilityService;
-    private final AdminRepository adminRepository;
+    private final AdminIdResolver adminIdResolver; // Gap #21: shared utility
 
     @PostMapping
     @Operation(summary = "Publish Version", description = "Publish a new app version. Immutable once created. Requires RELEASE_ENGINEER or SUPER_ADMIN role.")
     public ResponseEntity<VersionResponse> createVersion(
             @Valid @RequestBody CreateVersionRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
-        UUID adminId = getAdminId(userDetails);
+        UUID adminId = adminIdResolver.resolve(userDetails);
         return ResponseEntity.status(HttpStatus.CREATED).body(appVersionService.createVersion(request, adminId));
     }
 
@@ -61,11 +60,5 @@ public class AppVersionController {
             @RequestParam Integer from,
             @RequestParam Integer to) {
         return ResponseEntity.ok(compatibilityService.checkUpgradePath(from, to));
-    }
-
-    private UUID getAdminId(UserDetails userDetails) {
-        Admin admin = adminRepository.findByUsername(userDetails.getUsername())
-                .orElseThrow(() -> new IllegalArgumentException("Admin not found"));
-        return admin.getId();
     }
 }

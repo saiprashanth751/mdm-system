@@ -8,6 +8,8 @@ import com.moveinsync.mdm.repository.VersionCompatibilityRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +33,7 @@ public class VersionCompatibilityService {
     private static final Logger log = LoggerFactory.getLogger(VersionCompatibilityService.class);
     private final VersionCompatibilityRepository compatibilityRepository;
 
+    @CacheEvict(value = "compatibility", allEntries = true)
     @Transactional
     public String createRule(CompatibilityRuleRequest request) {
         // Downgrade prevention at rule level
@@ -78,6 +81,7 @@ public class VersionCompatibilityService {
      * Time complexity: O(V + E) where V = versions, E = compatibility rules
      * Space complexity: O(V) for BFS queue and visited set
      */
+    @Cacheable(value = "compatibility", key = "#fromVersionCode + '-' + #toVersionCode")
     @Transactional(readOnly = true)
     public CompatibilityCheckResponse checkUpgradePath(Integer fromVersionCode, Integer toVersionCode) {
         // Downgrade check
@@ -91,12 +95,27 @@ public class VersionCompatibilityService {
         }
 
         // Build adjacency list from all compatibility rules
+        // Gap #12 FIX: Enforce requiresIntermediate and intermediateVersionCode
         List<VersionCompatibility> allRules = compatibilityRepository.findAll();
         Map<Integer, List<Integer>> adjacencyList = new HashMap<>();
 
         for (VersionCompatibility rule : allRules) {
-            adjacencyList.computeIfAbsent(rule.getFromVersionCode(), k -> new ArrayList<>())
-                    .add(rule.getToVersionCode());
+            if (Boolean.TRUE.equals(rule.getRequiresIntermediate())
+                    && rule.getIntermediateVersionCode() != null) {
+                // When intermediate is required, add edges: from→intermediate and
+                // intermediate→to
+                // Do NOT add direct from→to edge (forces the intermediate step)
+                adjacencyList.computeIfAbsent(rule.getFromVersionCode(), k -> new ArrayList<>())
+                        .add(rule.getIntermediateVersionCode());
+                adjacencyList.computeIfAbsent(rule.getIntermediateVersionCode(), k -> new ArrayList<>())
+                        .add(rule.getToVersionCode());
+                log.debug("Compatibility rule {} → {} requires intermediate {}",
+                        rule.getFromVersionCode(), rule.getToVersionCode(), rule.getIntermediateVersionCode());
+            } else {
+                // Direct upgrade allowed
+                adjacencyList.computeIfAbsent(rule.getFromVersionCode(), k -> new ArrayList<>())
+                        .add(rule.getToVersionCode());
+            }
         }
 
         // BFS to find shortest path

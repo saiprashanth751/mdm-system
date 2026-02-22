@@ -30,129 +30,167 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class DeviceService {
 
-    private static final Logger log = LoggerFactory.getLogger(DeviceService.class);
-    private final DeviceRepository deviceRepository;
-    private final DeviceUpdateRepository deviceUpdateRepository;
-    private final AppVersionRepository appVersionRepository;
-    private final AuditService auditService;
+        private static final Logger log = LoggerFactory.getLogger(DeviceService.class);
+        private final DeviceRepository deviceRepository;
+        private final DeviceUpdateRepository deviceUpdateRepository;
+        private final AppVersionRepository appVersionRepository;
+        private final AuditService auditService;
 
-    @Transactional
-    public DeviceResponse registerDevice(DeviceRegisterRequest request) {
-        if (deviceRepository.existsByImei(request.getImei())) {
-            throw new DeviceAlreadyExistsException(
-                    "Device with IMEI " + request.getImei() + " is already registered.");
+        @Transactional
+        public DeviceResponse registerDevice(DeviceRegisterRequest request) {
+                if (deviceRepository.existsByImei(request.getImei())) {
+                        throw new DeviceAlreadyExistsException(
+                                        "Device with IMEI " + request.getImei() + " is already registered.");
+                }
+
+                Device device = Device.builder()
+                                .imei(request.getImei())
+                                .appVersion(request.getAppVersion())
+                                .deviceOs(request.getDeviceOs())
+                                .deviceModel(request.getDeviceModel())
+                                .region(request.getRegion())
+                                .clientTag(request.getClientTag())
+                                .status(DeviceStatus.ACTIVE)
+                                .build();
+
+                device = deviceRepository.save(device);
+
+                auditService.logAction(AuditEntityType.DEVICE, device.getId(),
+                                "DEVICE_REGISTERED", device.getId(), ActorType.DEVICE,
+                                Map.of("imei", request.getImei(), "appVersion", request.getAppVersion()));
+
+                log.info("Device registered: IMEI={}, region={}, version={}",
+                                request.getImei(), request.getRegion(), request.getAppVersion());
+
+                return DeviceResponse.builder()
+                                .deviceId(device.getId())
+                                .imei(device.getImei())
+                                .appVersion(device.getAppVersion())
+                                .deviceOs(device.getDeviceOs())
+                                .deviceModel(device.getDeviceModel())
+                                .region(device.getRegion())
+                                .clientTag(device.getClientTag())
+                                .lastHeartbeat(device.getLastHeartbeat())
+                                .status(device.getStatus().name())
+                                .registeredAt(device.getCreatedAt())
+                                .message("Device registered successfully.")
+                                .build();
         }
 
-        Device device = Device.builder()
-                .imei(request.getImei())
-                .appVersion(request.getAppVersion())
-                .deviceOs(request.getDeviceOs())
-                .deviceModel(request.getDeviceModel())
-                .region(request.getRegion())
-                .clientTag(request.getClientTag())
-                .status(DeviceStatus.ACTIVE)
-                .build();
+        @Transactional
+        public HeartbeatResponse processHeartbeat(HeartbeatRequest request) {
+                Device device = deviceRepository.findByImei(request.getImei())
+                                .orElseThrow(() -> new DeviceNotFoundException(
+                                                "No device found with IMEI " + request.getImei()
+                                                                + ". Please register first."));
 
-        device = deviceRepository.save(device);
+                // Update device metadata
+                device.setLastHeartbeat(LocalDateTime.now());
+                if (request.getRegion() != null) {
+                        device.setRegion(request.getRegion());
+                }
+                device.setStatus(DeviceStatus.ACTIVE);
 
-        auditService.logAction(AuditEntityType.DEVICE, device.getId(),
-                "DEVICE_REGISTERED", device.getId(), ActorType.DEVICE,
-                Map.of("imei", request.getImei(), "appVersion", request.getAppVersion()));
+                // VERSION COMPLIANCE VALIDATION (Gap #5/#19)
+                // Validate that the reported version actually exists in the app_versions table.
+                // Prevents devices from reporting arbitrary/spoofed version strings.
+                boolean versionCompliant = true;
+                String complianceMessage = null;
+                AppVersion reportedVersion = appVersionRepository.findByVersionName(request.getAppVersion())
+                                .orElse(null);
 
-        log.info("Device registered: IMEI={}, region={}, version={}",
-                request.getImei(), request.getRegion(), request.getAppVersion());
+                if (reportedVersion != null) {
+                        // Valid version — update device record
+                        device.setAppVersion(request.getAppVersion());
 
-        return DeviceResponse.builder()
-                .deviceId(device.getId())
-                .imei(device.getImei())
-                .appVersion(device.getAppVersion())
-                .deviceOs(device.getDeviceOs())
-                .deviceModel(device.getDeviceModel())
-                .region(device.getRegion())
-                .clientTag(device.getClientTag())
-                .lastHeartbeat(device.getLastHeartbeat())
-                .status(device.getStatus().name())
-                .registeredAt(device.getCreatedAt())
-                .message("Device registered successfully.")
-                .build();
-    }
+                        // Check if the device is on the latest available version
+                        AppVersion latestVersion = appVersionRepository.findTopByIsActiveTrueOrderByVersionCodeDesc()
+                                        .orElse(null);
+                        if (latestVersion != null
+                                        && reportedVersion.getVersionCode() < latestVersion.getVersionCode()) {
+                                versionCompliant = false;
+                                complianceMessage = "Device is on version " + request.getAppVersion()
+                                                + " (code " + reportedVersion.getVersionCode()
+                                                + "), latest available is " + latestVersion.getVersionName()
+                                                + " (code " + latestVersion.getVersionCode() + ")";
+                                log.info("Version compliance check: IMEI={} — {}", request.getImei(),
+                                                complianceMessage);
+                        }
+                } else {
+                        // Unknown version — log warning but still accept heartbeat
+                        log.warn("Heartbeat from IMEI={} reports unknown version '{}'. Not updating device version.",
+                                        request.getImei(), request.getAppVersion());
+                        versionCompliant = false;
+                        complianceMessage = "Reported version '" + request.getAppVersion()
+                                        + "' is not recognized. Device version not updated.";
+                }
+                deviceRepository.save(device);
 
-    @Transactional
-    public HeartbeatResponse processHeartbeat(HeartbeatRequest request) {
-        Device device = deviceRepository.findByImei(request.getImei())
-                .orElseThrow(() -> new DeviceNotFoundException(
-                        "No device found with IMEI " + request.getImei() + ". Please register first."));
+                // Check for pending updates
+                HeartbeatResponse.PendingUpdateInfo pendingUpdate = null;
+                List<DeviceUpdate> scheduledUpdates = deviceUpdateRepository.findScheduledByDeviceId(device.getId());
 
-        // Update device metadata
-        device.setLastHeartbeat(LocalDateTime.now());
-        device.setAppVersion(request.getAppVersion());
-        if (request.getRegion() != null) {
-            device.setRegion(request.getRegion());
+                if (!scheduledUpdates.isEmpty()) {
+                        DeviceUpdate latestUpdate = scheduledUpdates.get(0);
+                        AppVersion targetVersion = appVersionRepository
+                                        .findByVersionCode(latestUpdate.getSchedule().getToVersionCode())
+                                        .orElse(null);
+
+                        if (targetVersion != null) {
+                                pendingUpdate = HeartbeatResponse.PendingUpdateInfo.builder()
+                                                .updateId(latestUpdate.getId().toString())
+                                                .targetVersion(targetVersion.getVersionName())
+                                                .mandatory(targetVersion.getIsMandatory())
+                                                .build();
+                        }
+                }
+
+                return HeartbeatResponse.builder()
+                                .acknowledged(true)
+                                .lastHeartbeat(device.getLastHeartbeat())
+                                .pendingUpdate(pendingUpdate)
+                                .versionCompliant(versionCompliant)
+                                .complianceMessage(complianceMessage)
+                                .build();
         }
-        device.setStatus(DeviceStatus.ACTIVE);
-        deviceRepository.save(device);
 
-        // Check for pending updates
-        HeartbeatResponse.PendingUpdateInfo pendingUpdate = null;
-        List<DeviceUpdate> scheduledUpdates = deviceUpdateRepository.findScheduledByDeviceId(device.getId());
+        @Transactional(readOnly = true)
+        public Page<DeviceResponse> listDevices(String region, String appVersion, String clientTag,
+                        DeviceStatus status, Pageable pageable) {
+                Page<Device> devices = deviceRepository.findWithFilters(region, appVersion, clientTag, status,
+                                pageable);
 
-        if (!scheduledUpdates.isEmpty()) {
-            DeviceUpdate latestUpdate = scheduledUpdates.get(0);
-            AppVersion targetVersion = appVersionRepository
-                    .findByVersionCode(latestUpdate.getSchedule().getToVersionCode())
-                    .orElse(null);
-
-            if (targetVersion != null) {
-                pendingUpdate = HeartbeatResponse.PendingUpdateInfo.builder()
-                        .updateId(latestUpdate.getId().toString())
-                        .targetVersion(targetVersion.getVersionName())
-                        .mandatory(targetVersion.getIsMandatory())
-                        .build();
-            }
+                return devices.map(d -> DeviceResponse.builder()
+                                .deviceId(d.getId())
+                                .imei(d.getImei())
+                                .appVersion(d.getAppVersion())
+                                .deviceOs(d.getDeviceOs())
+                                .deviceModel(d.getDeviceModel())
+                                .region(d.getRegion())
+                                .clientTag(d.getClientTag())
+                                .lastHeartbeat(d.getLastHeartbeat())
+                                .status(d.getStatus().name())
+                                .registeredAt(d.getCreatedAt())
+                                .build());
         }
 
-        return HeartbeatResponse.builder()
-                .acknowledged(true)
-                .lastHeartbeat(device.getLastHeartbeat())
-                .pendingUpdate(pendingUpdate)
-                .build();
-    }
+        @Transactional(readOnly = true)
+        public DeviceResponse getDeviceById(UUID deviceId) {
+                Device device = deviceRepository.findById(deviceId)
+                                .orElseThrow(() -> new DeviceNotFoundException(
+                                                "Device not found with ID: " + deviceId));
 
-    @Transactional(readOnly = true)
-    public Page<DeviceResponse> listDevices(String region, String appVersion, String clientTag,
-            DeviceStatus status, Pageable pageable) {
-        Page<Device> devices = deviceRepository.findWithFilters(region, appVersion, clientTag, status, pageable);
-
-        return devices.map(d -> DeviceResponse.builder()
-                .deviceId(d.getId())
-                .imei(d.getImei())
-                .appVersion(d.getAppVersion())
-                .deviceOs(d.getDeviceOs())
-                .deviceModel(d.getDeviceModel())
-                .region(d.getRegion())
-                .clientTag(d.getClientTag())
-                .lastHeartbeat(d.getLastHeartbeat())
-                .status(d.getStatus().name())
-                .registeredAt(d.getCreatedAt())
-                .build());
-    }
-
-    @Transactional(readOnly = true)
-    public DeviceResponse getDeviceById(UUID deviceId) {
-        Device device = deviceRepository.findById(deviceId)
-                .orElseThrow(() -> new DeviceNotFoundException("Device not found with ID: " + deviceId));
-
-        return DeviceResponse.builder()
-                .deviceId(device.getId())
-                .imei(device.getImei())
-                .appVersion(device.getAppVersion())
-                .deviceOs(device.getDeviceOs())
-                .deviceModel(device.getDeviceModel())
-                .region(device.getRegion())
-                .clientTag(device.getClientTag())
-                .lastHeartbeat(device.getLastHeartbeat())
-                .status(device.getStatus().name())
-                .registeredAt(device.getCreatedAt())
-                .build();
-    }
+                return DeviceResponse.builder()
+                                .deviceId(device.getId())
+                                .imei(device.getImei())
+                                .appVersion(device.getAppVersion())
+                                .deviceOs(device.getDeviceOs())
+                                .deviceModel(device.getDeviceModel())
+                                .region(device.getRegion())
+                                .clientTag(device.getClientTag())
+                                .lastHeartbeat(device.getLastHeartbeat())
+                                .status(device.getStatus().name())
+                                .registeredAt(device.getCreatedAt())
+                                .build();
+        }
 }
