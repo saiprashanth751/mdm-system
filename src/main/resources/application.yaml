@@ -53,18 +53,23 @@ app:
   jwt:
     secret: 4d6f766549536e7963204d444d2053797374656d205365637265744b6579466f724a575420546f6b656e2047656e65726174696f6e
     expiration: 86400000  # 24 hours in milliseconds
+  scheduler:
+    inactive-threshold-days: 7
+    inactive-check-interval-ms: 3600000   # 1 hour
+    max-retry-count: 3
+    retry-check-interval-ms: 1800000      # 30 minutes
 
 # Actuator
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,caches
+        include: health,info,metrics,caches,prometheus
   endpoint:
     health:
       show-details: when_authorized
 
-# Logging
+# Logging — structured JSON for production, readable console for dev
 logging:
   level:
     root: INFO
@@ -73,6 +78,9 @@ logging:
     org.hibernate.SQL: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  structured:
+    json:
+      enabled: true  # Gap #23: Enable JSON structured logging for ELK/Loki parsing
 
 # SpringDoc / Swagger
 springdoc:

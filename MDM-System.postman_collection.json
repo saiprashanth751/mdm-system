@@ -1,479 +1,654 @@
 {
-  "info": {
-    "name": "MDM System API",
-    "description": "Mobile Device Management System — Full API collection.\n\nSetup:\n1. Start the app: docker-compose up -d && ./mvnw spring-boot:run\n2. Run the \"Login (super_admin)\" request first — the token is auto-saved.\n3. All authenticated endpoints use the {{token}} variable automatically.",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8081/api/v1" },
-    { "key": "token", "value": "" }
-  ],
-  "auth": {
-    "type": "bearer",
-    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
-  },
-  "item": [
-    {
-      "name": "1. Authentication",
-      "item": [
-        {
-          "name": "Login (super_admin)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "var json = pm.response.json();",
-                  "pm.collectionVariables.set('token', json.token);",
-                  "pm.test('Login successful', function() {",
-                  "    pm.response.to.have.status(200);",
-                  "    pm.expect(json.token).to.be.a('string');",
-                  "    pm.expect(json.role).to.equal('SUPER_ADMIN');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "url": "{{baseUrl}}/auth/login",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"super_admin\",\n  \"password\": \"admin123\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Login (release_engineer)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "var json = pm.response.json();",
-                  "pm.test('Role is RELEASE_ENGINEER', function() {",
-                  "    pm.expect(json.role).to.equal('RELEASE_ENGINEER');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "url": "{{baseUrl}}/auth/login",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"release_engineer\",\n  \"password\": \"admin123\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Login (bad credentials — 401)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Returns 401', function() {",
-                  "    pm.response.to.have.status(401);",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "url": "{{baseUrl}}/auth/login",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"super_admin\",\n  \"password\": \"wrongpassword\"\n}"
-            }
-          }
-        }
-      ]
+    "info": {
+        "name": "MDM System API",
+        "description": "Mobile Device Management System — Full API collection.\n\nSetup:\n1. Start the app: docker-compose up -d && ./mvnw spring-boot:run\n2. Run the \"Login (super_admin)\" request first — the token is auto-saved.\n3. All authenticated endpoints use the {{token}} variable automatically.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
-    {
-      "name": "2. Version Management",
-      "item": [
+    "variable": [
         {
-          "name": "Publish Version 1.0.0",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Version published (201)', function() {",
-                  "    pm.response.to.have.status(201);",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/versions",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"versionCode\": 100,\n  \"versionName\": \"1.0.0\",\n  \"releaseDate\": \"2025-01-15\",\n  \"minOsVersion\": \"Android 10\",\n  \"maxOsVersion\": \"Android 14\",\n  \"customizationTag\": \"GENERIC\",\n  \"isMandatory\": false\n}"
-            }
-          }
+            "key": "baseUrl",
+            "value": "http://localhost:8081/api/v1"
         },
         {
-          "name": "Publish Version 1.1.0",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/versions",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"versionCode\": 110,\n  \"versionName\": \"1.1.0\",\n  \"releaseDate\": \"2025-03-01\",\n  \"minOsVersion\": \"Android 10\",\n  \"maxOsVersion\": \"Android 14\",\n  \"customizationTag\": \"GENERIC\",\n  \"isMandatory\": false\n}"
-            }
-          }
+            "key": "token",
+            "value": ""
         },
         {
-          "name": "List All Versions",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Returns array of versions', function() {",
-                  "    pm.response.to.have.status(200);",
-                  "    var json = pm.response.json();",
-                  "    pm.expect(json).to.be.an('array');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/versions"
-          }
-        },
-        {
-          "name": "Create Compatibility Rule (100 → 110)",
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/versions/compatibility",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"fromVersionCode\": 100,\n  \"toVersionCode\": 110\n}"
-            }
-          }
-        },
-        {
-          "name": "Check Upgrade Path (BFS)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Path check returns result', function() {",
-                  "    pm.response.to.have.status(200);",
-                  "    var json = pm.response.json();",
-                  "    pm.expect(json).to.have.property('allowed');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/versions/compatibility/check?from=100&to=110",
-              "host": ["{{baseUrl}}"],
-              "path": ["versions", "compatibility", "check"],
-              "query": [
-                { "key": "from", "value": "100" },
-                { "key": "to", "value": "110" }
-              ]
-            }
-          }
+            "key": "deviceUpdateId",
+            "value": ""
         }
-      ]
+    ],
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{token}}",
+                "type": "string"
+            }
+        ]
     },
-    {
-      "name": "3. Device Management",
-      "item": [
+    "item": [
         {
-          "name": "Register Device",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "var json = pm.response.json();",
-                  "pm.collectionVariables.set('deviceId', json.deviceId);",
-                  "pm.test('Device registered (201)', function() {",
-                  "    pm.response.to.have.status(201);",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "url": "{{baseUrl}}/devices/register",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"imei\": \"123456789012345\",\n  \"appVersion\": \"1.0.0\",\n  \"deviceOs\": \"Android 13\",\n  \"deviceModel\": \"Samsung Galaxy S23\",\n  \"region\": \"MUMBAI\",\n  \"clientTag\": \"CORPORATE\"\n}"
-            }
-          }
+            "name": "1. Authentication",
+            "item": [
+                {
+                    "name": "Login (super_admin)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var json = pm.response.json();",
+                                    "pm.collectionVariables.set('token', json.token);",
+                                    "pm.test('Login successful', function() {",
+                                    "    pm.response.to.have.status(200);",
+                                    "    pm.expect(json.token).to.be.a('string');",
+                                    "    pm.expect(json.role).to.equal('SUPER_ADMIN');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "url": "{{baseUrl}}/auth/login",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"username\": \"super_admin\",\n  \"password\": \"admin123\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Login (release_engineer)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var json = pm.response.json();",
+                                    "pm.test('Role is RELEASE_ENGINEER', function() {",
+                                    "    pm.expect(json.role).to.equal('RELEASE_ENGINEER');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "url": "{{baseUrl}}/auth/login",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"username\": \"release_engineer\",\n  \"password\": \"admin123\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Login (bad credentials — 401)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Returns 401', function() {",
+                                    "    pm.response.to.have.status(401);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "url": "{{baseUrl}}/auth/login",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"username\": \"super_admin\",\n  \"password\": \"wrongpassword\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Register Admin",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Admin registered (201)', function() {",
+                                    "    pm.response.to.have.status(201);",
+                                    "    pm.expect(pm.response.json().username).to.be.a('string');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "url": "{{baseUrl}}/auth/register",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "X-Admin-Id",
+                                "value": "{{adminId}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"username\": \"new_engineer\",\n  \"password\": \"password123\",\n  \"role\": \"RELEASE_ENGINEER\"\n}"
+                        }
+                    }
+                }
+            ]
         },
         {
-          "name": "Heartbeat",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Heartbeat acknowledged', function() {",
-                  "    pm.response.to.have.status(200);",
-                  "    pm.expect(pm.response.json().acknowledged).to.be.true;",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "url": "{{baseUrl}}/devices/heartbeat",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"imei\": \"123456789012345\",\n  \"appVersion\": \"1.0.0\",\n  \"region\": \"MUMBAI\"\n}"
-            }
-          }
+            "name": "2. Version Management",
+            "item": [
+                {
+                    "name": "Publish Version 1.0.0",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Version published (201)', function() {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "url": "{{baseUrl}}/versions",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"versionCode\": 100,\n  \"versionName\": \"1.0.0\",\n  \"releaseDate\": \"2025-01-15\",\n  \"minOsVersion\": \"Android 10\",\n  \"maxOsVersion\": \"Android 14\",\n  \"customizationTag\": \"GENERIC\",\n  \"isMandatory\": false\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Publish Version 1.1.0",
+                    "request": {
+                        "method": "POST",
+                        "url": "{{baseUrl}}/versions",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"versionCode\": 110,\n  \"versionName\": \"1.1.0\",\n  \"releaseDate\": \"2025-03-01\",\n  \"minOsVersion\": \"Android 10\",\n  \"maxOsVersion\": \"Android 14\",\n  \"customizationTag\": \"GENERIC\",\n  \"isMandatory\": false\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "List All Versions",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Returns array of versions', function() {",
+                                    "    pm.response.to.have.status(200);",
+                                    "    var json = pm.response.json();",
+                                    "    pm.expect(json).to.be.an('array');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/versions"
+                    }
+                },
+                {
+                    "name": "Create Compatibility Rule (100 → 110)",
+                    "request": {
+                        "method": "POST",
+                        "url": "{{baseUrl}}/versions/compatibility",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"fromVersionCode\": 100,\n  \"toVersionCode\": 110\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Check Upgrade Path (BFS)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Path check returns result', function() {",
+                                    "    pm.response.to.have.status(200);",
+                                    "    var json = pm.response.json();",
+                                    "    pm.expect(json).to.have.property('allowed');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/versions/compatibility/check?from=100&to=110",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "versions",
+                                "compatibility",
+                                "check"
+                            ],
+                            "query": [
+                                {
+                                    "key": "from",
+                                    "value": "100"
+                                },
+                                {
+                                    "key": "to",
+                                    "value": "110"
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
         },
         {
-          "name": "List Devices (paginated, filtered)",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/devices?region=MUMBAI&page=0&size=10",
-              "host": ["{{baseUrl}}"],
-              "path": ["devices"],
-              "query": [
-                { "key": "region", "value": "MUMBAI" },
-                { "key": "page", "value": "0" },
-                { "key": "size", "value": "10" }
-              ]
-            }
-          }
+            "name": "3. Device Management",
+            "item": [
+                {
+                    "name": "Register Device",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var json = pm.response.json();",
+                                    "pm.collectionVariables.set('deviceId', json.deviceId);",
+                                    "pm.test('Device registered (201)', function() {",
+                                    "    pm.response.to.have.status(201);",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "url": "{{baseUrl}}/devices/register",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"imei\": \"123456789012345\",\n  \"appVersion\": \"1.0.0\",\n  \"deviceOs\": \"Android 13\",\n  \"deviceModel\": \"Samsung Galaxy S23\",\n  \"region\": \"MUMBAI\",\n  \"clientTag\": \"CORPORATE\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Heartbeat",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Heartbeat acknowledged', function() {",
+                                    "    pm.response.to.have.status(200);",
+                                    "    pm.expect(pm.response.json().acknowledged).to.be.true;",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "url": "{{baseUrl}}/devices/heartbeat",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"imei\": \"123456789012345\",\n  \"appVersion\": \"1.0.0\",\n  \"region\": \"MUMBAI\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "List Devices (paginated, filtered)",
+                    "request": {
+                        "method": "GET",
+                        "url": {
+                            "raw": "{{baseUrl}}/devices?region=MUMBAI&page=0&size=10",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "devices"
+                            ],
+                            "query": [
+                                {
+                                    "key": "region",
+                                    "value": "MUMBAI"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "0"
+                                },
+                                {
+                                    "key": "size",
+                                    "value": "10"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Device by ID",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/devices/{{deviceId}}"
+                    }
+                }
+            ]
         },
         {
-          "name": "Get Device by ID",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/devices/{{deviceId}}"
-          }
+            "name": "4. Update Scheduling",
+            "item": [
+                {
+                    "name": "Schedule Update (100 → 110, MUMBAI)",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var json = pm.response.json();",
+                                    "pm.collectionVariables.set('scheduleId', json.scheduleId);",
+                                    "pm.test('Schedule created (201)', function() {",
+                                    "    pm.response.to.have.status(201);",
+                                    "    pm.expect(json.status).to.equal('PENDING_APPROVAL');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "url": "{{baseUrl}}/updates/schedule",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"fromVersionCode\": 100,\n  \"toVersionCode\": 110,\n  \"targetRegion\": \"MUMBAI\",\n  \"rolloutType\": \"IMMEDIATE\",\n  \"rolloutPercentage\": 100\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Approve Schedule",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var json = pm.response.json();",
+                                    "if (json.deviceUpdateIds && json.deviceUpdateIds.length > 0) {",
+                                    "    pm.collectionVariables.set('deviceUpdateId', json.deviceUpdateIds[0]);",
+                                    "}",
+                                    "pm.test('Schedule approved', function() {",
+                                    "    pm.response.to.have.status(200);",
+                                    "    pm.expect(pm.response.json().status).to.equal('APPROVED');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "PUT",
+                        "url": "{{baseUrl}}/updates/schedule/{{scheduleId}}/approve"
+                    }
+                },
+                {
+                    "name": "Reject Schedule",
+                    "request": {
+                        "method": "PUT",
+                        "url": "{{baseUrl}}/updates/schedule/{{scheduleId}}/reject",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"reason\": \"Postponing to next sprint\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Get Schedule Details",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/updates/schedule/{{scheduleId}}"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "5. Device Update Status",
+            "item": [
+                {
+                    "name": "Report Status: DOWNLOAD_STARTED",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "PUT",
+                        "url": "{{baseUrl}}/updates/{{deviceUpdateId}}/status",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"imei\": \"123456789012345\",\n  \"newState\": \"DOWNLOAD_STARTED\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Report Status: DOWNLOAD_COMPLETED",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "PUT",
+                        "url": "{{baseUrl}}/updates/{{deviceUpdateId}}/status",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"imei\": \"123456789012345\",\n  \"newState\": \"DOWNLOAD_COMPLETED\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Report Status: INSTALLATION_STARTED",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "PUT",
+                        "url": "{{baseUrl}}/updates/{{deviceUpdateId}}/status",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"imei\": \"123456789012345\",\n  \"newState\": \"INSTALLATION_STARTED\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Report Status: INSTALLATION_COMPLETED",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "PUT",
+                        "url": "{{baseUrl}}/updates/{{deviceUpdateId}}/status",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"imei\": \"123456789012345\",\n  \"newState\": \"INSTALLATION_COMPLETED\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Report Status: FAILED (with reason)",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "PUT",
+                        "url": "{{baseUrl}}/updates/{{deviceUpdateId}}/status",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"imei\": \"123456789012345\",\n  \"newState\": \"FAILED\",\n  \"failureReason\": \"Network timeout during download\"\n}"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "6. Dashboard & Audit",
+            "item": [
+                {
+                    "name": "Dashboard Summary",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "pm.test('Dashboard returns summary', function() {",
+                                    "    pm.response.to.have.status(200);",
+                                    "    var json = pm.response.json();",
+                                    "    pm.expect(json).to.have.property('totalDevices');",
+                                    "    pm.expect(json).to.have.property('versionDistribution');",
+                                    "});"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/dashboard/summary"
+                    }
+                },
+                {
+                    "name": "Device Audit Timeline",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/audit/devices/{{deviceId}}"
+                    }
+                },
+                {
+                    "name": "Schedule Audit Trail",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{baseUrl}}/audit/schedules/{{scheduleId}}"
+                    }
+                }
+            ]
         }
-      ]
-    },
-    {
-      "name": "4. Update Scheduling",
-      "item": [
-        {
-          "name": "Schedule Update (100 → 110, MUMBAI)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "var json = pm.response.json();",
-                  "pm.collectionVariables.set('scheduleId', json.scheduleId);",
-                  "pm.test('Schedule created (201)', function() {",
-                  "    pm.response.to.have.status(201);",
-                  "    pm.expect(json.status).to.equal('PENDING_APPROVAL');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "url": "{{baseUrl}}/updates/schedule",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"fromVersionCode\": 100,\n  \"toVersionCode\": 110,\n  \"targetRegion\": \"MUMBAI\",\n  \"rolloutType\": \"IMMEDIATE\",\n  \"rolloutPercentage\": 100\n}"
-            }
-          }
-        },
-        {
-          "name": "Approve Schedule",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Schedule approved', function() {",
-                  "    pm.response.to.have.status(200);",
-                  "    pm.expect(pm.response.json().status).to.equal('APPROVED');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "PUT",
-            "url": "{{baseUrl}}/updates/schedule/{{scheduleId}}/approve"
-          }
-        },
-        {
-          "name": "Reject Schedule",
-          "request": {
-            "method": "PUT",
-            "url": "{{baseUrl}}/updates/schedule/{{scheduleId}}/reject",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"reason\": \"Postponing to next sprint\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Get Schedule Details",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/updates/schedule/{{scheduleId}}"
-          }
-        }
-      ]
-    },
-    {
-      "name": "5. Device Update Status",
-      "item": [
-        {
-          "name": "Report Status: DOWNLOAD_STARTED",
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "PUT",
-            "url": "{{baseUrl}}/updates/{{deviceUpdateId}}/status",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"imei\": \"123456789012345\",\n  \"newState\": \"DOWNLOAD_STARTED\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Report Status: DOWNLOAD_COMPLETED",
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "PUT",
-            "url": "{{baseUrl}}/updates/{{deviceUpdateId}}/status",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"imei\": \"123456789012345\",\n  \"newState\": \"DOWNLOAD_COMPLETED\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Report Status: INSTALLATION_STARTED",
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "PUT",
-            "url": "{{baseUrl}}/updates/{{deviceUpdateId}}/status",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"imei\": \"123456789012345\",\n  \"newState\": \"INSTALLATION_STARTED\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Report Status: INSTALLATION_COMPLETED",
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "PUT",
-            "url": "{{baseUrl}}/updates/{{deviceUpdateId}}/status",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"imei\": \"123456789012345\",\n  \"newState\": \"INSTALLATION_COMPLETED\"\n}"
-            }
-          }
-        },
-        {
-          "name": "Report Status: FAILED (with reason)",
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "PUT",
-            "url": "{{baseUrl}}/updates/{{deviceUpdateId}}/status",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"imei\": \"123456789012345\",\n  \"newState\": \"FAILED\",\n  \"failureReason\": \"Network timeout during download\"\n}"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "6. Dashboard & Audit",
-      "item": [
-        {
-          "name": "Dashboard Summary",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Dashboard returns summary', function() {",
-                  "    pm.response.to.have.status(200);",
-                  "    var json = pm.response.json();",
-                  "    pm.expect(json).to.have.property('totalDevices');",
-                  "    pm.expect(json).to.have.property('versionDistribution');",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/dashboard/summary"
-          }
-        },
-        {
-          "name": "Device Audit Timeline",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/audit/devices/{{deviceId}}"
-          }
-        },
-        {
-          "name": "Schedule Audit Trail",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/audit/schedules/{{scheduleId}}"
-          }
-        }
-      ]
-    }
-  ]
+    ]
 }
