@@ -13,6 +13,7 @@ import com.moveinsync.mdm.exception.DeviceNotFoundException;
 import com.moveinsync.mdm.repository.AppVersionRepository;
 import com.moveinsync.mdm.repository.DeviceRepository;
 import com.moveinsync.mdm.repository.DeviceUpdateRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +36,7 @@ public class DeviceService {
         private final DeviceUpdateRepository deviceUpdateRepository;
         private final AppVersionRepository appVersionRepository;
         private final AuditService auditService;
+        private final MeterRegistry meterRegistry;
 
         @Transactional
         public DeviceResponse registerDevice(DeviceRegisterRequest request) {
@@ -54,6 +56,10 @@ public class DeviceService {
                                 .build();
 
                 device = deviceRepository.save(device);
+
+                // Prometheus: track device registrations
+                meterRegistry.counter("mdm.device.registered.total",
+                                "region", device.getRegion() != null ? device.getRegion() : "unknown").increment();
 
                 auditService.logAction(AuditEntityType.DEVICE, device.getId(),
                                 "DEVICE_REGISTERED", device.getId(), ActorType.DEVICE,
@@ -125,6 +131,10 @@ public class DeviceService {
                                         + "' is not recognized. Device version not updated.";
                 }
                 deviceRepository.save(device);
+
+                // Prometheus: track heartbeats by region
+                meterRegistry.counter("mdm.heartbeat.total",
+                                "region", device.getRegion() != null ? device.getRegion() : "unknown").increment();
 
                 // Check for pending updates
                 HeartbeatResponse.PendingUpdateInfo pendingUpdate = null;
