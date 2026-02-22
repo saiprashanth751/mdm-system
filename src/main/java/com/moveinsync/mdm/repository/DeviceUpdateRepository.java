@@ -34,4 +34,11 @@ public interface DeviceUpdateRepository extends JpaRepository<DeviceUpdate, UUID
 
     // Find by schedule and device (unique)
     Optional<DeviceUpdate> findByScheduleIdAndDeviceId(UUID scheduleId, UUID deviceId);
+
+    // Find failed updates eligible for retry (Gap #3)
+    List<DeviceUpdate> findByCurrentStateAndRetryCountLessThan(UpdateState state, int maxRetries);
+
+    // Count permanently failed updates for schedule lifecycle (Gap #4)
+    long countByScheduleIdAndCurrentStateAndRetryCountGreaterThanEqual(
+            UUID scheduleId, UpdateState state, int retryCount);
 }

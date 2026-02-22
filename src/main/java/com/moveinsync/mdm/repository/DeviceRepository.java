@@ -17,45 +17,49 @@ import java.util.UUID;
 @Repository
 public interface DeviceRepository extends JpaRepository<Device, UUID> {
 
-    Optional<Device> findByImei(String imei);
+        Optional<Device> findByImei(String imei);
 
-    boolean existsByImei(String imei);
+        boolean existsByImei(String imei);
 
-    // Filtered device listing with optional parameters
-    @Query("SELECT d FROM Device d WHERE " +
-            "(:region IS NULL OR d.region = :region) AND " +
-            "(:appVersion IS NULL OR d.appVersion = :appVersion) AND " +
-            "(:clientTag IS NULL OR d.clientTag = :clientTag) AND " +
-            "(:status IS NULL OR d.status = :status)")
-    Page<Device> findWithFilters(
-            @Param("region") String region,
-            @Param("appVersion") String appVersion,
-            @Param("clientTag") String clientTag,
-            @Param("status") DeviceStatus status,
-            Pageable pageable);
+        // Filtered device listing with optional parameters
+        @Query("SELECT d FROM Device d WHERE " +
+                        "(:region IS NULL OR d.region = :region) AND " +
+                        "(:appVersion IS NULL OR d.appVersion = :appVersion) AND " +
+                        "(:clientTag IS NULL OR d.clientTag = :clientTag) AND " +
+                        "(:status IS NULL OR d.status = :status)")
+        Page<Device> findWithFilters(
+                        @Param("region") String region,
+                        @Param("appVersion") String appVersion,
+                        @Param("clientTag") String clientTag,
+                        @Param("status") DeviceStatus status,
+                        Pageable pageable);
 
-    // Devices inactive beyond a threshold
-    List<Device> findByLastHeartbeatBeforeAndStatus(LocalDateTime threshold, DeviceStatus status);
+        // Devices inactive beyond a threshold
+        List<Device> findByLastHeartbeatBeforeAndStatus(LocalDateTime threshold, DeviceStatus status);
 
-    // Count by region
-    @Query("SELECT d.region, COUNT(d) FROM Device d WHERE d.status = 'ACTIVE' GROUP BY d.region")
-    List<Object[]> countByRegion();
+        // Count by region
+        @Query("SELECT d.region, COUNT(d) FROM Device d WHERE d.status = 'ACTIVE' GROUP BY d.region")
+        List<Object[]> countByRegion();
 
-    // Version distribution
-    @Query("SELECT d.appVersion, COUNT(d) FROM Device d WHERE d.status = 'ACTIVE' GROUP BY d.appVersion ORDER BY COUNT(d) DESC")
-    List<Object[]> countByAppVersion();
+        // Version distribution
+        @Query("SELECT d.appVersion, COUNT(d) FROM Device d WHERE d.status = 'ACTIVE' GROUP BY d.appVersion ORDER BY COUNT(d) DESC")
+        List<Object[]> countByAppVersion();
 
-    // Total active count
-    long countByStatus(DeviceStatus status);
+        // Total active count
+        long countByStatus(DeviceStatus status);
 
-    // Find devices matching an update schedule's targeting criteria
-    @Query("SELECT d FROM Device d WHERE " +
-            "d.appVersion = :appVersion AND " +
-            "d.status = 'ACTIVE' AND " +
-            "(:region IS NULL OR d.region = :region) AND " +
-            "(:clientTag IS NULL OR d.clientTag = :clientTag)")
-    List<Device> findTargetDevices(
-            @Param("appVersion") String appVersion,
-            @Param("region") String region,
-            @Param("clientTag") String clientTag);
+        // Find devices matching an update schedule's targeting criteria
+        @Query("SELECT d FROM Device d WHERE " +
+                        "d.appVersion = :appVersion AND " +
+                        "d.status = 'ACTIVE' AND " +
+                        "(:region IS NULL OR d.region = :region) AND " +
+                        "(:clientTag IS NULL OR d.clientTag = :clientTag)")
+        List<Device> findTargetDevices(
+                        @Param("appVersion") String appVersion,
+                        @Param("region") String region,
+                        @Param("clientTag") String clientTag);
+
+        // Gap #8: Version heatmap — region x version cross-tab
+        @Query("SELECT d.region, d.appVersion, COUNT(d) FROM Device d WHERE d.status = 'ACTIVE' GROUP BY d.region, d.appVersion ORDER BY d.region, d.appVersion")
+        List<Object[]> countByRegionAndVersion();
 }
