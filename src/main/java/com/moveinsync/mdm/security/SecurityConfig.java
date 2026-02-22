@@ -33,8 +33,12 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints
-                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        // Public endpoints — only login is unauthenticated
+                        .requestMatchers("/api/v1/auth/login").permitAll()
+                        // Register requires SUPER_ADMIN — prevents unauthorized account creation
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/register").hasRole("SUPER_ADMIN")
+
+                        // Device-facing endpoints (no admin auth — devices use IMEI)
                         .requestMatchers("/api/v1/devices/register").permitAll()
                         .requestMatchers("/api/v1/devices/heartbeat").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/v1/updates/*/status").permitAll()
@@ -43,8 +47,8 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**")
                         .permitAll()
 
-                        // Actuator
-                        .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        // Actuator — health, info, and prometheus for monitoring scraper
+                        .requestMatchers("/actuator/health", "/actuator/info", "/actuator/prometheus").permitAll()
 
                         // Admin-only: approve/reject schedules
                         .requestMatchers(HttpMethod.PUT, "/api/v1/updates/schedule/*/approve").hasRole("SUPER_ADMIN")

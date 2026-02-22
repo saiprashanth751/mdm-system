@@ -69,7 +69,7 @@ management:
     health:
       show-details: when_authorized
 
-# Logging — structured JSON for production, readable console for dev
+# Logging — ECS (Elastic Common Schema) JSON for production observability
 logging:
   level:
     root: INFO
@@ -79,8 +79,8 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
   structured:
-    json:
-      enabled: true  # Gap #23: Enable JSON structured logging for ELK/Loki parsing
+    format:
+      console: ecs  # Spring Boot 3.4+: native ECS JSON structured logging
 
 # SpringDoc / Swagger
 springdoc:

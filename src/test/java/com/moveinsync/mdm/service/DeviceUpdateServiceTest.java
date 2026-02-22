@@ -12,11 +12,13 @@ import com.moveinsync.mdm.exception.InvalidStateTransitionException;
 import com.moveinsync.mdm.repository.AppVersionRepository;
 import com.moveinsync.mdm.repository.DeviceRepository;
 import com.moveinsync.mdm.repository.DeviceUpdateRepository;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -47,8 +49,17 @@ class DeviceUpdateServiceTest {
         @Mock
         private AuditService auditService;
 
-        @InjectMocks
+        // Use real in-memory registry — no stubbing needed, avoids
+        // UnnecessaryStubbingException
+        private final MeterRegistry meterRegistry = new SimpleMeterRegistry();
+
         private DeviceUpdateService service;
+
+        @BeforeEach
+        void setUp() {
+                service = new DeviceUpdateService(deviceUpdateRepository, deviceRepository,
+                                appVersionRepository, auditService, meterRegistry);
+        }
 
         private DeviceUpdate createDeviceUpdate(UpdateState state, int toVersionCode) {
                 UUID duId = UUID.randomUUID();
