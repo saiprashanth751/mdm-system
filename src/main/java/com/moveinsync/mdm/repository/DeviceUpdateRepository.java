@@ -38,10 +38,10 @@ public interface DeviceUpdateRepository extends JpaRepository<DeviceUpdate, UUID
     // Find device updates by schedule and state (for scheduled rollout trigger)
     List<DeviceUpdate> findByScheduleIdAndCurrentState(UUID scheduleId, UpdateState state);
 
-    // Find failed updates eligible for retry (Gap #3)
+    // Find failed updates eligible for retry
     List<DeviceUpdate> findByCurrentStateAndRetryCountLessThan(UpdateState state, int maxRetries);
 
-    // Count permanently failed updates for schedule lifecycle (Gap #4)
+    // Count permanently failed updates for schedule lifecycle
     long countByScheduleIdAndCurrentStateAndRetryCountGreaterThanEqual(
             UUID scheduleId, UpdateState state, int retryCount);
 }

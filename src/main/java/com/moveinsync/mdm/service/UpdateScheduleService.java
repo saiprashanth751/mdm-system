@@ -66,7 +66,8 @@ public class UpdateScheduleService {
                 List<Device> targetDevices = deviceRepository.findTargetDevices(
                                 fromVersion.getVersionName(),
                                 request.getTargetRegion(),
-                                request.getTargetClientTag());
+                                request.getTargetClientTag(),
+                                DeviceStatus.ACTIVE);
 
                 if (targetDevices.isEmpty()) {
                         throw new IllegalArgumentException(
@@ -75,7 +76,7 @@ public class UpdateScheduleService {
                                                         + request.getTargetRegion() + ").");
                 }
 
-                // Gap #11: OS-based compatibility — filter devices outside the target version's
+                // OS-based compatibility — filter devices outside the target version's
                 // OS range
                 AppVersion targetVersion = appVersionRepository.findByVersionCode(request.getToVersionCode())
                                 .orElseThrow(() -> new IllegalArgumentException(
@@ -193,7 +194,6 @@ public class UpdateScheduleService {
                 schedule.setApprovedAt(LocalDateTime.now());
                 scheduleRepository.save(schedule);
 
-                // ═══════════════════════════════════════════════════════════════
                 // KAFKA: Publish approval event for async device notification.
                 // The consumer (ScheduleApprovalConsumer) will transition devices
                 // from SCHEDULED → NOTIFIED in batches. The HTTP response returns
@@ -203,7 +203,6 @@ public class UpdateScheduleService {
                 // • Survives JVM crash — messages are persistent
                 // • Scales across instances — consumer groups distribute load
                 // • At-least-once delivery guarantee
-                // ═══════════════════════════════════════════════════════════════
                 ScheduleApprovedEvent event = new ScheduleApprovedEvent(
                                 scheduleId, adminId, LocalDateTime.now());
                 kafkaTemplate.send(KafkaConfig.SCHEDULE_APPROVED_TOPIC, scheduleId.toString(), event);

@@ -27,5 +27,5 @@ public class ScheduleResponse {
     private LocalDateTime approvedAt;
     private LocalDateTime createdAt;
     private String message;
-    private List<UUID> deviceUpdateIds; // Gap #18: expose for Postman/clients
+    private List<UUID> deviceUpdateIds; // Expose for Postman/clients
 }

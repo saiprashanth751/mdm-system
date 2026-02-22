@@ -86,7 +86,7 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, "BAD_REQUEST", ex.getMessage());
     }
 
-    // Gap #17: Handle database constraint violations (FK, unique, etc.)
+    // Handle database constraint violations (FK, unique, etc.)
     @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
     public ResponseEntity<ApiErrorResponse> handleDataIntegrityViolation(
             org.springframework.dao.DataIntegrityViolationException ex) {

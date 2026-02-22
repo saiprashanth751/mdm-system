@@ -74,8 +74,7 @@ public class DeviceUpdateService {
                 if (newState == UpdateState.INSTALLATION_STARTED || newState == UpdateState.INSTALLATION_COMPLETED) {
                         Integer targetVersionCode = deviceUpdate.getSchedule().getToVersionCode();
 
-                        // Gap #15 FIX: Don't silently bypass downgrade check when version name doesn't
-                        // match.
+                        // Don't silently bypass downgrade check when version name doesn't match.
                         // Use orElse with explicit handling instead of ifPresent.
                         Optional<AppVersion> currentVersionOpt = appVersionRepository
                                         .findByVersionName(device.getAppVersion());

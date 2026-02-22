@@ -29,7 +29,7 @@ public class AppVersionController {
 
     private final AppVersionService appVersionService;
     private final VersionCompatibilityService compatibilityService;
-    private final AdminIdResolver adminIdResolver; // Gap #21: shared utility
+    private final AdminIdResolver adminIdResolver;
 
     @PostMapping
     @Operation(summary = "Publish Version", description = "Publish a new app version. Immutable once created. Requires RELEASE_ENGINEER or SUPER_ADMIN role.")

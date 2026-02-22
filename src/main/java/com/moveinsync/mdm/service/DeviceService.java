@@ -91,7 +91,6 @@ public class DeviceService {
                                                 "No device found with IMEI " + request.getImei()
                                                                 + ". Please register first."));
 
-                // ═══════════════════════════════════════════════════════════════
                 // REDIS HEARTBEAT BUFFER: Instead of writing directly to PostgreSQL
                 // (which costs a DB connection per heartbeat), we buffer in Redis
                 // (sub-millisecond, no connection pool contention).
@@ -103,7 +102,6 @@ public class DeviceService {
                 // • Redis write is O(1), sub-millisecond
                 // • At 1M devices: 3,333 writes/sec → Redis handles easily,
                 // PostgreSQL connection pool (20) would be overwhelmed
-                // ═══════════════════════════════════════════════════════════════
                 LocalDateTime now = LocalDateTime.now();
                 heartbeatBufferService.bufferHeartbeat(
                                 request.getImei(), now,
@@ -113,7 +111,7 @@ public class DeviceService {
                 meterRegistry.counter("mdm.heartbeat.total",
                                 "region", device.getRegion() != null ? device.getRegion() : "unknown").increment();
 
-                // VERSION COMPLIANCE VALIDATION (Gap #5/#19)
+                // VERSION COMPLIANCE VALIDATION
                 // These are READ queries — cheap on PostgreSQL, no need to buffer.
                 boolean versionCompliant = true;
                 String complianceMessage = null;

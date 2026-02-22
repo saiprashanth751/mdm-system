@@ -28,7 +28,7 @@ public class UpdateController {
 
     private final UpdateScheduleService updateScheduleService;
     private final DeviceUpdateService deviceUpdateService;
-    private final AdminIdResolver adminIdResolver; // Gap #21: shared utility
+    private final AdminIdResolver adminIdResolver;
 
     // ==================== SCHEDULE MANAGEMENT ====================
 

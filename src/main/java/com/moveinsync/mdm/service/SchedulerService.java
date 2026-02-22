@@ -47,11 +47,9 @@ public class SchedulerService {
         @Value("${app.scheduler.max-retry-count:3}")
         private int maxRetryCount;
 
-        // ═══════════════════════════════════════════════════════════
-        // GAP #2 FIX: Inactive Device Detection
+        // Inactive Device Detection
         // Runs every hour. Marks devices as INACTIVE if no heartbeat
         // has been received within the configured threshold.
-        // ═══════════════════════════════════════════════════════════
         @Scheduled(fixedRateString = "${app.scheduler.inactive-check-interval-ms:3600000}")
         @Transactional
         @CacheEvict(value = "dashboard", allEntries = true)
@@ -88,11 +86,9 @@ public class SchedulerService {
                                 count, inactiveThresholdDays);
         }
 
-        // ═══════════════════════════════════════════════════════════
-        // GAP #3 FIX: Auto-Retry Failed Updates
+        // Auto-Retry Failed Updates
         // Runs every 30 minutes. Finds FAILED device updates with
         // retry_count < max and resets them to SCHEDULED.
-        // ═══════════════════════════════════════════════════════════
         @Scheduled(fixedRateString = "${app.scheduler.retry-check-interval-ms:1800000}")
         @Transactional
         public void retryFailedUpdates() {
@@ -128,21 +124,17 @@ public class SchedulerService {
                                 retried, maxRetryCount);
         }
 
-        // ═══════════════════════════════════════════════════════════
-        // GAP #4 FIX: Schedule Lifecycle State Transitions
+        // Schedule Lifecycle State Transitions
         // Runs every 5 minutes. Transitions schedules:
         // APPROVED → IN_PROGRESS (when any device update has progressed)
         // IN_PROGRESS → COMPLETED (when ALL device updates are terminal)
-        // ═══════════════════════════════════════════════════════════
         @Scheduled(fixedRate = 300000) // 5 minutes
         @Transactional
         @CacheEvict(value = "dashboard", allEntries = true)
         public void updateScheduleLifecycle() {
-                // ═══════════════════════════════════════════════════════════
-                // FIX #4: Trigger time-based scheduled rollouts
+                // Trigger time-based scheduled rollouts
                 // When an APPROVED schedule has rolloutType=SCHEDULED and
                 // scheduledAt is in the past, notify waiting devices.
-                // ═══════════════════════════════════════════════════════════
                 List<UpdateSchedule> approved = scheduleRepository.findByStatus(ScheduleStatus.APPROVED);
                 for (UpdateSchedule schedule : approved) {
                         if (schedule.getRolloutType() == RolloutType.SCHEDULED

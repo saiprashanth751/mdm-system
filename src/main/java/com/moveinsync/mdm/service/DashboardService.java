@@ -33,7 +33,7 @@ public class DashboardService {
                 long inactiveDevices = deviceRepository.countByStatus(DeviceStatus.INACTIVE);
 
                 // Version distribution
-                List<Object[]> versionCounts = deviceRepository.countByAppVersion();
+                List<Object[]> versionCounts = deviceRepository.countByAppVersion(DeviceStatus.ACTIVE);
                 List<DashboardSummaryResponse.VersionDistribution> versionDistribution = versionCounts.stream()
                                 .map(row -> DashboardSummaryResponse.VersionDistribution.builder()
                                                 .version((String) row[0])
@@ -45,8 +45,8 @@ public class DashboardService {
                                                 .build())
                                 .collect(Collectors.toList());
 
-                // Gap #8: Version heatmap — cross-region/version counts
-                List<Object[]> heatmapData = deviceRepository.countByRegionAndVersion();
+                // Version heatmap — cross-region/version counts
+                List<Object[]> heatmapData = deviceRepository.countByRegionAndVersion(DeviceStatus.ACTIVE);
                 List<DashboardSummaryResponse.VersionHeatmap> versionHeatmap = heatmapData.stream()
                                 .map(row -> DashboardSummaryResponse.VersionHeatmap.builder()
                                                 .region((String) row[0])
@@ -55,7 +55,7 @@ public class DashboardService {
                                                 .build())
                                 .collect(Collectors.toList());
 
-                // Gap #9: Region breakdown with version adoption per region
+                // Region breakdown with version adoption per region
                 Map<String, List<DashboardSummaryResponse.VersionCount>> regionVersionMap = heatmapData.stream()
                                 .collect(Collectors.groupingBy(
                                                 row -> (String) row[0],
@@ -66,7 +66,7 @@ public class DashboardService {
                                                                                 .build(),
                                                                 Collectors.toList())));
 
-                List<Object[]> regionCounts = deviceRepository.countByRegion();
+                List<Object[]> regionCounts = deviceRepository.countByRegion(DeviceStatus.ACTIVE);
                 List<DashboardSummaryResponse.RegionBreakdown> regionBreakdown = regionCounts.stream()
                                 .map(row -> DashboardSummaryResponse.RegionBreakdown.builder()
                                                 .region((String) row[0])
@@ -76,7 +76,7 @@ public class DashboardService {
                                                 .build())
                                 .collect(Collectors.toList());
 
-                // Gap #7: Active rollouts with success/failure rate
+                // Active rollouts with success/failure rate
                 List<UpdateSchedule> activeSchedules = scheduleRepository.findByStatusIn(
                                 List.of(ScheduleStatus.APPROVED, ScheduleStatus.IN_PROGRESS));
 

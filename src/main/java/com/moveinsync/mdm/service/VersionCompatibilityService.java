@@ -95,7 +95,6 @@ public class VersionCompatibilityService {
         }
 
         // Build adjacency list from all compatibility rules
-        // Gap #12 FIX: Enforce requiresIntermediate and intermediateVersionCode
         List<VersionCompatibility> allRules = compatibilityRepository.findAll();
         Map<Integer, List<Integer>> adjacencyList = new HashMap<>();
 
