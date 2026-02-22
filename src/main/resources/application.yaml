@@ -48,6 +48,22 @@ spring:
       time-to-live: 300000
       cache-null-values: false
 
+  # Kafka — Event-driven async processing
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: true
+    consumer:
+      group-id: mdm-schedule-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.moveinsync.mdm.event
+
 # JWT Configuration
 app:
   jwt:
