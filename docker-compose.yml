@@ -31,6 +31,24 @@ services:
       timeout: 5s
       retries: 5
 
+  app:
+    build: .
+    container_name: mdm-app
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/mdm_db
+      SPRING_DATASOURCE_USERNAME: mdm_user
+      SPRING_DATASOURCE_PASSWORD: mdm_password
+      SPRING_DATA_REDIS_HOST: redis
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   redis_data:
+
+
