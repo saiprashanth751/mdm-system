@@ -86,6 +86,15 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, "BAD_REQUEST", ex.getMessage());
     }
 
+    // Gap #17: Handle database constraint violations (FK, unique, etc.)
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleDataIntegrityViolation(
+            org.springframework.dao.DataIntegrityViolationException ex) {
+        log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
+        String message = "Data integrity violation: a referenced entity does not exist or a unique constraint was violated.";
+        return buildResponse(HttpStatus.CONFLICT, "DATA_INTEGRITY_VIOLATION", message);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGeneral(Exception ex) {
         log.error("Unexpected error: ", ex);
